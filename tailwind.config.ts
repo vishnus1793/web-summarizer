@@ -24,8 +24,37 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				
+				/* Surfaces */
+				surface: 'hsl(var(--surface))',
+				'surface-variant': 'hsl(var(--surface-variant))',
+				'surface-elevated': 'hsl(var(--surface-elevated))',
+				
+				/* Notebook specific */
+				notebook: {
+					sidebar: 'hsl(var(--notebook-sidebar))',
+					main: 'hsl(var(--notebook-main))',
+					studio: 'hsl(var(--notebook-studio))'
+				},
+				
+				/* Cell types */
+				cell: {
+					text: 'hsl(var(--cell-text))',
+					code: 'hsl(var(--cell-code))',
+					llm: 'hsl(var(--cell-llm))'
+				},
+				
+				/* Google brand */
+				google: {
+					blue: 'hsl(var(--google-blue))',
+					red: 'hsl(var(--google-red))',
+					yellow: 'hsl(var(--google-yellow))',
+					green: 'hsl(var(--google-green))'
+				},
+				
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
+					hover: 'hsl(var(--primary-hover))',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
@@ -35,6 +64,14 @@ export default {
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
 					foreground: 'hsl(var(--destructive-foreground))'
+				},
+				success: {
+					DEFAULT: 'hsl(var(--success))',
+					foreground: 'hsl(var(--success-foreground))'
+				},
+				warning: {
+					DEFAULT: 'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))'
 				},
 				muted: {
 					DEFAULT: 'hsl(var(--muted))',
