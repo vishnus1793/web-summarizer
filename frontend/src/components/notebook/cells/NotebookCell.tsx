@@ -3,7 +3,7 @@ import { NotebookCell as CellType } from '@/types/notebook';
 import { TextCell } from './TextCell';
 import { CodeCell } from './CodeCell';
 import { LLMCell } from './LLMCell';
-import { MindMapCell } from './MindMapCell';
+import { MindMapCell } from '../MindMapCell';
 import { Button } from '@/components/ui/button';
 import { MoreVertical, Trash2, MoveUp, MoveDown } from 'lucide-react';
 import {

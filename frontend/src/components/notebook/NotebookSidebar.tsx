@@ -1,30 +1,58 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, FileText, Upload, Link as LinkIcon, Loader } from 'lucide-react';
+import { Plus, Search, X, FileText, Upload, Link as LinkIcon, Loader } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import ReactFlow, { MiniMap, Controls, Background, Node, Edge } from 'reactflow';
+import 'reactflow/dist/style.css';
+
+// Types
+interface MindMapNode {
+  id: string;
+  label: string;
+}
+
+interface MindMapEdge {
+  source: string;
+  target: string;
+}
+
+interface ScrapedData {
+  scraped_content: { title: string };
+  summary?: {
+    summary: string;
+    key_concepts: string[];
+  };
+  mind_maps?: {
+    network?: {
+      data: { nodes: MindMapNode[]; edges: MindMapEdge[] };
+    };
+  };
+}
 
 export const NotebookSidebar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteError, setWebsiteError] = useState(false);
-  const [scrapedData, setScrapedData] = useState<any>(null);
+  const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Handle file upload
+  // Remove file by index
+  const handleRemoveFile = (idxToRemove: number) => {
+    setSelectedFiles(prevFiles => prevFiles.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  // File upload handler
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      setSelectedFiles((prev) => [...prev, file]);
+      setSelectedFiles(prev => [...prev, file]);
 
       const formData = new FormData();
       formData.append('file', file);
 
       try {
-        const res = await fetch('http://localhost:5000/upload', {
-          method: 'POST',
-          body: formData,
-        });
+        const res = await fetch('http://localhost:5000/upload', { method: 'POST', body: formData });
         const data = await res.json();
         console.log('Backend response:', data);
       } catch (error) {
@@ -33,7 +61,7 @@ export const NotebookSidebar = () => {
     }
   };
 
-  // Handle website scrape
+  // Website scrape handler
   const handleWebsiteSubmit = async () => {
     if (websiteUrl.trim() === '') {
       setWebsiteError(true);
@@ -43,21 +71,19 @@ export const NotebookSidebar = () => {
     setLoading(true);
 
     try {
-      // Start scrape job
       const res = await fetch('http://localhost:8000/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: websiteUrl }),
       });
-
       const { job_id } = await res.json();
 
-      // Poll for job result
-      let result = null;
+      let result: ScrapedData | null = null;
       while (!result) {
-        await new Promise((r) => setTimeout(r, 2000)); // 2s delay
+        await new Promise(r => setTimeout(r, 2000));
         const statusRes = await fetch(`http://localhost:8000/job/${job_id}`);
         const statusData = await statusRes.json();
+
         if (statusData.status === 'completed') {
           result = statusData.result;
           break;
@@ -68,7 +94,6 @@ export const NotebookSidebar = () => {
       }
 
       setScrapedData(result);
-
     } catch (error) {
       console.error('Error scraping website:', error);
       alert('Failed to scrape website.');
@@ -77,6 +102,27 @@ export const NotebookSidebar = () => {
       setWebsiteUrl('');
     }
   };
+
+  // Convert backend mindmap to React Flow elements
+  const reactFlowElements = useMemo(() => {
+    if (!scrapedData?.mind_maps?.network?.data) return [];
+    const { nodes, edges } = scrapedData.mind_maps.network.data;
+
+    const flowNodes: Node[] = nodes.map((n, idx) => ({
+      id: n.id,
+      data: { label: n.label },
+      position: { x: 50 + (idx % 5) * 150, y: Math.floor(idx / 5) * 100 },
+    }));
+
+    const flowEdges: Edge[] = edges.map(e => ({
+      id: `${e.source}-${e.target}`,
+      source: e.source,
+      target: e.target,
+      animated: true,
+    }));
+
+    return [...flowNodes, ...flowEdges];
+  }, [scrapedData]);
 
   return (
     <div className="w-80 bg-notebook-sidebar border-r border-border flex flex-col">
@@ -88,10 +134,14 @@ export const NotebookSidebar = () => {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="flex-1 gap-2">
-            <Plus className="w-4 h-4" /> Add
+          <Button
+            variant="outline"
+            className="gap-2 w-full"
+            onClick={() => document.getElementById('fileInput')?.click()}
+          >
+            <Upload className="w-4 h-4" />
+            Add Files
           </Button>
           <Button size="sm" variant="outline" className="flex-1 gap-2">
             <Search className="w-4 h-4" /> Discover
@@ -104,48 +154,44 @@ export const NotebookSidebar = () => {
         <Input
           placeholder="Search sources..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={e => setSearchQuery(e.target.value)}
           className="bg-surface"
         />
       </div>
 
       {/* Upload & Website */}
       <div className="p-4 border-b border-border space-y-3">
-        {/* File Upload */}
         <div>
-          <input
-            type="file"
-            id="fileInput"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          <input type="file" id="fileInput" className="hidden" onChange={handleFileChange} />
           <Button
             variant="outline"
             className="gap-2 w-full"
             onClick={() => document.getElementById('fileInput')?.click()}
           >
             <Upload className="w-4 h-4" />
-            {selectedFiles.length > 0
-              ? `${selectedFiles[selectedFiles.length - 1].name}`
-              : 'Upload a source'}
+             Upload a source
           </Button>
         </div>
-
-        {/* Website URL */}
         <div className="flex gap-2">
           <Input
             placeholder="Enter website URL..."
             value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
+            onChange={e => setWebsiteUrl(e.target.value)}
+            disabled={loading}
           />
-          <Button onClick={handleWebsiteSubmit} variant="outline" size="sm">
+          <Button
+            onClick={handleWebsiteSubmit}
+            variant="outline"
+            size="sm"
+            disabled={loading}
+          >
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
           </Button>
         </div>
         {websiteError && <p className="text-red-500 text-sm mt-1">Please enter a website URL</p>}
       </div>
 
-      {/* Sources & Scraped Data */}
+      {/* Content & Mind Map */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {selectedFiles.length > 0 && (
           <div className="space-y-2">
@@ -154,6 +200,13 @@ export const NotebookSidebar = () => {
               <div key={idx} className="flex items-center gap-2 bg-surface p-2 rounded-md">
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-foreground">{file.name}</span>
+                <button
+                  onClick={() => handleRemoveFile(idx)}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                  aria-label="Remove file"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             ))}
           </div>
@@ -168,17 +221,29 @@ export const NotebookSidebar = () => {
             </p>
             {scrapedData.summary?.key_concepts && (
               <div className="flex flex-wrap gap-2 mt-2">
-                {scrapedData.summary.key_concepts.map((concept: string, idx: number) => (
+                {scrapedData.summary.key_concepts.map((concept, idx) => (
                   <span key={idx} className="bg-surface px-2 py-1 rounded text-xs text-foreground">
                     {concept}
                   </span>
                 ))}
               </div>
             )}
+
+            {reactFlowElements.length > 0 && (
+              <div className="h-64 w-full border border-border rounded mt-4">
+                <ReactFlow nodes={reactFlowElements.filter(n => (n as Node).data)}
+                           edges={reactFlowElements.filter(e => (e as Edge).source && (e as Edge).target)}
+                           fitView>
+                  <MiniMap />
+                  <Controls />
+                  <Background />
+                </ReactFlow>
+              </div>
+            )}
           </div>
         )}
 
-        {selectedFiles.length === 0 && !scrapedData && !loading && (
+        {!scrapedData && selectedFiles.length === 0 && !loading && (
           <div className="text-center py-8 space-y-4">
             <div className="w-12 h-12 bg-surface rounded-lg flex items-center justify-center mx-auto">
               <FileText className="w-6 h-6 text-muted-foreground" />

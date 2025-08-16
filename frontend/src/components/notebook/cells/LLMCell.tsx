@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, Send, Square, Loader2 } from 'lucide-react';
+import { MindMapViewer } from './MindMapViewer'; // <-- Import MindMapViewer
 
 interface LLMCellProps {
   cell: LLMCellType;
@@ -15,9 +16,6 @@ const GEMINI_MODELS = [
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' },
 ];
-
-// Replace with your Gemini API Key here
-const GEMINI_API_KEY = "AIzaSyDwfaxEP-Ji9CA6eXwptj9wyjBuS6AhDLE";
 
 export const LLMCell = ({ cell }: LLMCellProps) => {
   const { updateCell } = useNotebookStore();
@@ -60,26 +58,17 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
     updateCell(cell.id, { isStreaming: true });
 
     try {
-      const res = await fetch("https://generativeai.googleapis.com/v1beta2/models/" + model + ":generateText", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GEMINI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: {
-            text: prompt,
-          },
-          temperature: 0.7,
-          maxOutputTokens: 500
-        }),
+      // Call your backend to generate mind map
+      const res = await fetch('/api/mindmap/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, model }),
       });
 
       const data = await res.json();
-      // Gemini returns choices array
-      const textResponse = data?.candidates?.[0]?.content || "No response";
+      const textResponse = data?.text || "No response";
 
-      // Simulate streaming token by token
+      // Stream textual response token by token
       let i = 0;
       const interval = setInterval(() => {
         if (i < textResponse.length) {
@@ -91,8 +80,13 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
         }
       }, 10); // adjust speed
 
+      // Store mind map in notebook
+      if (data.mindmap) {
+        updateCell(cell.id, { mindmap: data.mindmap });
+      }
+
     } catch (error) {
-      console.error("Failed to fetch Gemini:", error);
+      console.error("Failed to generate mind map:", error);
       setIsStreaming(false);
       updateCell(cell.id, { isStreaming: false });
     }
@@ -129,12 +123,24 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-foreground">Prompt</label>
-          <Button onClick={isStreaming ? stopStreaming : handleSubmit} disabled={!prompt.trim()} size="sm" variant={isStreaming ? "destructive" : "default"} className="gap-2">
+          <Button
+            onClick={isStreaming ? stopStreaming : handleSubmit}
+            disabled={!prompt.trim()}
+            size="sm"
+            variant={isStreaming ? "destructive" : "default"}
+            className="gap-2"
+          >
             {isStreaming ? <><Square className="w-4 h-4" />Stop</> : <><Send className="w-4 h-4" />Send</>}
           </Button>
         </div>
 
-        <Textarea value={prompt} onChange={(e) => handlePromptChange(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask Google Gemini anything..." className="min-h-[80px] bg-background/50 border-border resize-none" />
+        <Textarea
+          value={prompt}
+          onChange={(e) => handlePromptChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask anything to generate a mind map..."
+          className="min-h-[80px] bg-background/50 border-border resize-none"
+        />
 
         <div className="text-xs text-muted-foreground">Press Ctrl+Enter to send</div>
       </div>
@@ -151,12 +157,21 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
               </div>
             )}
           </div>
+
           <div ref={responseRef} className="max-h-96 overflow-y-auto p-4 rounded-md bg-background/30 border border-border">
             <div className="prose prose-sm max-w-none prose-invert whitespace-pre-wrap">
               {isStreaming ? streamingText : response}
               {isStreaming && <span className="animate-pulse">▋</span>}
             </div>
           </div>
+
+          {/* Mind Map */}
+          {cell.mindmap && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Mind Map</label>
+              <MindMapViewer mindmap={cell.mindmap} />
+            </div>
+          )}
         </div>
       )}
     </div>
