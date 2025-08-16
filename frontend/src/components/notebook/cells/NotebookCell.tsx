@@ -3,6 +3,7 @@ import { NotebookCell as CellType } from '@/types/notebook';
 import { TextCell } from './TextCell';
 import { CodeCell } from './CodeCell';
 import { LLMCell } from './LLMCell';
+import { MindMapCell } from './MindMapCell';
 import { Button } from '@/components/ui/button';
 import { MoreVertical, Trash2, MoveUp, MoveDown } from 'lucide-react';
 import {
@@ -52,6 +53,8 @@ export const NotebookCell = ({ cell }: NotebookCellProps) => {
         return <CodeCell cell={cell} />;
       case 'llm':
         return <LLMCell cell={cell} />;
+      case 'mindmap':
+        return <MindMapCell cell={cell} />;
       default:
         return <div>Unknown cell type</div>;
     }
@@ -65,6 +68,8 @@ export const NotebookCell = ({ cell }: NotebookCellProps) => {
         return 'bg-cell-code';
       case 'llm':
         return 'bg-cell-llm';
+      case 'mindmap':
+        return 'bg-primary/5';
       default:
         return 'bg-surface';
     }

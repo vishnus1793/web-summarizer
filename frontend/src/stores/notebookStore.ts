@@ -65,7 +65,7 @@ export const useNotebookStore = create<NotebookState & NotebookActions>()(
             content: '',
             language: 'javascript'
           };
-        } else {
+        } else if (type === 'llm') {
           newCell = {
             id: crypto.randomUUID(),
             type: 'llm',
@@ -73,6 +73,15 @@ export const useNotebookStore = create<NotebookState & NotebookActions>()(
             prompt: '',
             response: '',
             model: 'gemini-1.5-pro'
+          };
+        } else {
+          newCell = {
+            id: crypto.randomUUID(),
+            type: 'mindmap',
+            order: newOrder,
+            title: '',
+            url: '',
+            isGenerating: false
           };
         }
 

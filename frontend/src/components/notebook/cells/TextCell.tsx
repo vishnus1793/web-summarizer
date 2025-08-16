@@ -52,7 +52,7 @@ export const TextCell = ({ cell }: TextCellProps) => {
             autoFocus={!cell.content}
           />
           <div className="text-xs text-muted-foreground">
-            Press Ctrl+Enter to save, Esc to cancel
+            Press Ctrl+Enter to save, Esc to cancel4
           </div>
         </div>
       ) : (

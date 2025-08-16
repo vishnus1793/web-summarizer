@@ -10,9 +10,8 @@ export const useDemoData = () => {
     const demoUser: User = {
       id: 'demo-user',
       email: 'demo@example.com',
-      name: 'Demo User',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    };
+      name: 'Leo Das',
+      avatar: 'https://pbs.twimg.com/profile_images/1848301739809861632/DiTFQD4H_400x400.jpg'};
 
     // Set demo notebook
     const demoNotebook: Notebook = {

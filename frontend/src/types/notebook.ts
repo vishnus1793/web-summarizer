@@ -15,7 +15,7 @@ export interface Notebook {
   updatedAt: string;
 }
 
-export type CellType = 'text' | 'code' | 'llm';
+export type CellType = 'text' | 'code' | 'llm' | 'mindmap';
 
 export interface BaseCell {
   id: string;
@@ -42,7 +42,33 @@ export interface LLMCell extends BaseCell {
   model?: string;
 }
 
-export type NotebookCell = TextCell | CodeCell | LLMCell;
+export interface MindMapCell extends BaseCell {
+  type: 'mindmap';
+  url?: string;
+  title: string;
+  mindmapData?: {
+    visual?: string;
+    network?: string;
+    hierarchical?: string;
+    structured?: {
+      root: {
+        name: string;
+        type: string;
+      };
+      nodes: Array<{
+        id: string;
+        name: string;
+        type: string;
+        parent: string;
+      }>;
+    };
+  };
+  keyConcepts?: string[];
+  summary?: string;
+  isGenerating?: boolean;
+}
+
+export type NotebookCell = TextCell | CodeCell | LLMCell | MindMapCell;
 
 export interface NotebookState {
   currentNotebook: Notebook | null;
