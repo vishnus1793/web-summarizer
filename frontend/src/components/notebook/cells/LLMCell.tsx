@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, Send, Square, Loader2 } from 'lucide-react';
-import { MindMapViewer } from './MindMapViewer'; // <-- Import MindMapViewer
+import { MindMapViewer } from './MindMapViewer';
 
 interface LLMCellProps {
   cell: LLMCellType;
@@ -58,17 +58,17 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
     updateCell(cell.id, { isStreaming: true });
 
     try {
-      // Call your backend to generate mind map
-      const res = await fetch('/api/mindmap/generate', {
+      const res = await fetch('http://127.0.0.1:9000/api/mindmap/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, model }),
       });
 
-      const data = await res.json();
-      const textResponse = data?.text || "No response";
+      if (!res.ok) throw new Error(`HTTP error! ${res.status}`);
 
-      // Stream textual response token by token
+      const data = await res.json();
+      const textResponse = data?.text || data?.response || "No response";
+
       let i = 0;
       const interval = setInterval(() => {
         if (i < textResponse.length) {
@@ -78,15 +78,13 @@ export const LLMCell = ({ cell }: LLMCellProps) => {
           clearInterval(interval);
           stopStreaming();
         }
-      }, 10); // adjust speed
+      }, 10);
 
-      // Store mind map in notebook
       if (data.mindmap) {
         updateCell(cell.id, { mindmap: data.mindmap });
       }
-
     } catch (error) {
-      console.error("Failed to generate mind map:", error);
+      console.error("❌ Failed to generate mind map:", error);
       setIsStreaming(false);
       updateCell(cell.id, { isStreaming: false });
     }
