@@ -1,7 +1,6 @@
 import { useNotebookStore } from '@/stores/notebookStore';
 import { NotebookSidebar } from './NotebookSidebar';
 import { NotebookMain } from './NotebookMain';
-import { NotebookStudio } from './NotebookStudio';
 import { NotebookToolbar } from './NotebookToolbar';
 
 export const NotebookLayout = () => {
@@ -51,8 +50,7 @@ export const NotebookLayout = () => {
         {/* Main Content */}
         <NotebookMain />
         
-        {/* Studio Panel */}
-        <NotebookStudio />
+   
       </div>
     </div>
   );

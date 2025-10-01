@@ -3,38 +3,24 @@ import { Editor } from '@monaco-editor/react';
 import { useNotebookStore } from '@/stores/notebookStore';
 import { CodeCell as CodeCellType } from '@/types/notebook';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Code, Play } from 'lucide-react';
+import { Code, Play, Loader2 } from 'lucide-react';
 
 interface CodeCellProps {
   cell: CodeCellType;
 }
 
-const LANGUAGES = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'java', label: 'Java' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'go', label: 'Go' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'json', label: 'JSON' },
-  { value: 'yaml', label: 'YAML' },
-  { value: 'markdown', label: 'Markdown' },
-  { value: 'html', label: 'HTML' },
-  { value: 'css', label: 'CSS' },
-];
-
 export const CodeCell = ({ cell }: CodeCellProps) => {
   const { updateCell } = useNotebookStore();
   const [content, setContent] = useState(cell.content);
   const [language, setLanguage] = useState(cell.language);
+  const [isLoading, setIsLoading] = useState(false);
+  const [explanation, setExplanation] = useState(cell.explanation || '');
 
   useEffect(() => {
     setContent(cell.content);
     setLanguage(cell.language);
-  }, [cell.content, cell.language]);
+    setExplanation(cell.explanation || '');
+  }, [cell.content, cell.language, cell.explanation]);
 
   const handleContentChange = (value: string | undefined) => {
     const newContent = value || '';
@@ -42,9 +28,30 @@ export const CodeCell = ({ cell }: CodeCellProps) => {
     updateCell(cell.id, { content: newContent });
   };
 
-  const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage);
-    updateCell(cell.id, { language: newLanguage });
+  const handleSubmit = async () => {
+    if (!content.trim() || isLoading) return;
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/code/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: content, language }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP error! ${res.status}`);
+
+      const data = await res.json();
+      const explanationText = data?.explanation || 'No explanation received';
+
+      setExplanation(explanationText);
+      updateCell(cell.id, { explanation: explanationText });
+    } catch (error) {
+      console.error('❌ Failed to get explanation:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -55,24 +62,17 @@ export const CodeCell = ({ cell }: CodeCellProps) => {
           <Code className="w-4 h-4" />
           <span>Code Cell</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Select value={language} onValueChange={handleLanguageChange}>
-            <SelectTrigger className="w-32 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LANGUAGES.map((lang) => (
-                <SelectItem key={lang.value} value={lang.value}>
-                  {lang.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Button size="sm" variant="outline" className="h-8 gap-1">
-            <Play className="w-3 h-3" />
-            Run
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1"
+            onClick={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+            Explain
           </Button>
         </div>
       </div>
@@ -97,13 +97,18 @@ export const CodeCell = ({ cell }: CodeCellProps) => {
             insertSpaces: true,
             renderLineHighlight: 'line',
             selectOnLineNumbers: true,
-            scrollbar: {
-              vertical: 'auto',
-              horizontal: 'auto',
-            },
+            scrollbar: { vertical: 'auto', horizontal: 'auto' },
           }}
         />
       </div>
+
+      {/* Explanation */}
+      {explanation && (
+        <div className="p-3 rounded-md bg-background/30 border border-border prose prose-sm max-w-none prose-invert whitespace-pre-wrap">
+          <strong>Explanation:</strong>
+          <div>{explanation}</div>
+        </div>
+      )}
     </div>
   );
 };

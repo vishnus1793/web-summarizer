@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Type, Globe, Loader2, Download, Eye, Network, TreePine } from 'lucide-react';
 import { toast } from 'sonner';
+import jsPDF from "jspdf";
 
 interface TextCellProps {
   cell: TextCellType;
@@ -43,7 +44,7 @@ export const TextCell = ({ cell }: TextCellProps) => {
   const { updateCell } = useNotebookStore();
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // Website scraping state
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,6 +53,21 @@ export const TextCell = ({ cell }: TextCellProps) => {
   const [showWebsiteInput, setShowWebsiteInput] = useState(false);
   const [progress, setProgress] = useState(0);
   const [jobStatus, setJobStatus] = useState('');
+
+  // 🔹 Search history cache
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  // 🔹 Search inside summary
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const savedHistory = JSON.parse(localStorage.getItem("searchHistory") || "[]");
+    setSearchHistory(savedHistory);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
+  }, [searchHistory]);
 
   // Fetch the content from backend on mount
   useEffect(() => {
@@ -97,7 +113,7 @@ export const TextCell = ({ cell }: TextCellProps) => {
 
   const pollJobStatus = async (jobId: string) => {
     let attempts = 0;
-    const maxAttempts = 30; // 1 minute with 2-second intervals
+    const maxAttempts = 30;
 
     while (attempts < maxAttempts) {
       try {
@@ -134,7 +150,6 @@ export const TextCell = ({ cell }: TextCellProps) => {
       return;
     }
 
-    // Basic URL validation
     try {
       new URL(websiteUrl);
     } catch {
@@ -149,7 +164,6 @@ export const TextCell = ({ cell }: TextCellProps) => {
     setJobStatus('queued');
 
     try {
-      // Start the scraping job
       const res = await fetch(`${BACKEND_URL}/scrape`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -164,10 +178,8 @@ export const TextCell = ({ cell }: TextCellProps) => {
       const { job_id } = await res.json();
       toast.success('Scraping started...');
 
-      // Poll for results
       const result = await pollJobStatus(job_id);
-      
-      // Update the text cell content with the summary
+
       const summaryContent = `# ${result.scraped_content.title}
 
 **Source:** ${result.scraped_content.url}
@@ -177,9 +189,10 @@ export const TextCell = ({ cell }: TextCellProps) => {
 ${result.summary.summary}
 
 ## Key Concepts
-${result.summary.key_concepts.map(concept => `- ${concept}`).join('\n')}`;
+${result.summary.key_concepts.map((concept: string) => `- ${concept}`).join('\n')}`;
 
       setContent(summaryContent);
+      setSearchHistory(prev => [...new Set([websiteUrl, ...prev])]); // 🔹 Add to history
       toast.success('Website scraped and analyzed successfully!');
       
     } catch (error) {
@@ -212,6 +225,21 @@ ${result.summary.key_concepts.map(concept => `- ${concept}`).join('\n')}`;
     toast.success('Copied to clipboard');
   };
 
+  // 🔹 Export summary to PDF
+  const exportToPDF = () => {
+    if (!scrapedData) return;
+    const doc = new jsPDF();
+    doc.setFont("helvetica");
+    doc.setFontSize(12);
+
+    doc.text(`Title: ${scrapedData.scraped_content.title}`, 10, 10);
+    doc.text(`URL: ${scrapedData.scraped_content.url}`, 10, 20);
+    doc.text("Summary:", 10, 40);
+    doc.text(scrapedData.summary.summary, 10, 50, { maxWidth: 180 });
+
+    doc.save("summary.pdf");
+  };
+
   return (
     <div className="space-y-4">
       {/* Cell header */}
@@ -222,6 +250,12 @@ ${result.summary.key_concepts.map(concept => `- ${concept}`).join('\n')}`;
         </div>
         
         <div className="flex items-center gap-2">
+          {scrapedData && (
+            <Button variant="outline" size="sm" onClick={exportToPDF}>
+              <Download className="w-4 h-4 mr-1" />
+              Export PDF
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -267,6 +301,25 @@ ${result.summary.key_concepts.map(concept => `- ${concept}`).join('\n')}`;
                 )}
               </Button>
             </div>
+
+            {/* 🔹 Show history */}
+            {searchHistory.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Recent Searches</h4>
+                <div className="flex flex-wrap gap-2">
+                  {searchHistory.map((url, i) => (
+                    <Button
+                      key={i}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setWebsiteUrl(url)}
+                    >
+                      {url}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {loading && (
               <div className="space-y-2">
@@ -422,7 +475,22 @@ ${result.summary.key_concepts.map(concept => `- ${concept}`).join('\n')}`;
               </p>
             </CardHeader>
             <CardContent>
-              <p className="text-sm leading-relaxed">{scrapedData.summary.summary}</p>
+              {/* 🔹 Search inside summary */}
+              <Input
+                placeholder="Search in summary..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-2"
+              />
+              <p className="text-sm leading-relaxed">
+                {scrapedData.summary.summary.split(new RegExp(`(${searchTerm})`, "gi")).map((part, i) =>
+                  part.toLowerCase() === searchTerm.toLowerCase() ? (
+                    <mark key={i} className="bg-yellow-300">{part}</mark>
+                  ) : (
+                    part
+                  )
+                )}
+              </p>
             </CardContent>
           </Card>
           
