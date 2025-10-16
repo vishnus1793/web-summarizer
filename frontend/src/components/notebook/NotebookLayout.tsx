@@ -45,7 +45,7 @@ export const NotebookLayout = () => {
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sources Sidebar */}
-        <NotebookSidebar />
+        {/* <NotebookSidebar /> */}
         
         {/* Main Content */}
         <NotebookMain />

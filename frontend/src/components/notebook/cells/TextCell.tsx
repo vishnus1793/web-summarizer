@@ -228,17 +228,130 @@ ${result.summary.key_concepts.map((concept: string) => `- ${concept}`).join('\n'
   // 🔹 Export summary to PDF
   const exportToPDF = () => {
     if (!scrapedData) return;
-    const doc = new jsPDF();
-    doc.setFont("helvetica");
-    doc.setFontSize(12);
 
-    doc.text(`Title: ${scrapedData.scraped_content.title}`, 10, 10);
-    doc.text(`URL: ${scrapedData.scraped_content.url}`, 10, 20);
-    doc.text("Summary:", 10, 40);
-    doc.text(scrapedData.summary.summary, 10, 50, { maxWidth: 180 });
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const margin = 40;
+    let y = margin;
 
-    doc.save("summary.pdf");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(scrapedData.scraped_content.title, margin, y);
+    y += 25;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Source: ${scrapedData.scraped_content.url}`, margin, y);
+    y += 20;
+
+    doc.text(`Word Count: ${scrapedData.scraped_content.word_count}`, margin, y);
+    y += 30;
+
+    // --- Summary Section ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Summary", margin, y);
+    y += 20;
+
+    doc.setFont("helvetica", "normal");
+    const summaryLines = doc.splitTextToSize(scrapedData.summary.summary, 520);
+    summaryLines.forEach(line => {
+      if (y > 760) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += 14;
+    });
+    y += 10;
+
+    // --- Key Concepts ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Key Concepts", margin, y);
+    y += 20;
+
+    doc.setFont("helvetica", "normal");
+    scrapedData.summary.key_concepts.forEach((concept) => {
+      if (y > 760) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(`• ${concept}`, margin, y);
+      y += 14;
+    });
+    y += 20;
+
+    // --- Scraped Sections ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Scraped Sections", margin, y);
+    y += 20;
+
+    scrapedData.scraped_content.sections.forEach((section, i) => {
+      if (y > 760) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(`${i + 1}. ${section.title}`, margin, y);
+      y += 16;
+
+      doc.setFont("helvetica", "normal");
+      const sectionLines = doc.splitTextToSize(section.content, 520);
+      sectionLines.forEach(line => {
+        if (y > 760) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 14;
+      });
+      y += 10;
+    });
+
+    // --- Mind Maps ---
+    const mindMapTypes = {
+      visual: "Visual Mind Map",
+      network: "Network Mind Map",
+      hierarchical: "Hierarchical Mind Map"
   };
+
+  Object.entries(mindMapTypes).forEach(([key, title]) => {
+    const mindMap = scrapedData.mind_maps[key as keyof typeof scrapedData.mind_maps];
+    if (mindMap) {
+      if (y > 740) {
+        doc.addPage();
+        y = margin;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(title, margin, y);
+      y += 20;
+
+      doc.setFont("helvetica", "normal");
+      const mapLines = doc.splitTextToSize(mindMap, 520);
+      mapLines.forEach(line => {
+        if (y > 760) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 14;
+      });
+      y += 20;
+    }
+  });
+
+  // --- Save the PDF ---
+  const filename = scrapedData.scraped_content.title
+    ? scrapedData.scraped_content.title.replace(/[^\w\d\s-]/g, '').slice(0, 50) + ".pdf"
+    : "scraped_summary.pdf";
+
+  doc.save(filename);
+  toast.success("Full report exported as PDF");
+};
 
   return (
     <div className="space-y-4">
